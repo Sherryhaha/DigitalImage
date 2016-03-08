@@ -56,104 +56,280 @@ void Gauss2D(Mat &src,Mat &src1,float *kernel,double segma){
     int tcenterY = (int)tHeight/2;
     int tcenterX = (int)tWidth/2;
     double pResult;
-    uchar* p,*p1;
-    src1.create(src.size(),src.type());
+   // uchar* p,*p1;
+    src1.create(src.size(),CV_32F);
     //src.data代表src的数据部分的指针
-    uchar* srcData = src.data;
-    uchar* dstData = src1.data;
+   // uchar* srcData = src.data;
+   // uchar* dstData = src1.data;
     //src1.create(pHeight,pWidth,CV_8UC1);
   //  cout<<src.step<<"hehe"<<endl;
    // cout<<src.cols<<"hehe"<<endl;
     CV_Assert(src.depth() != sizeof(uchar));
     for(int i = 0;i < pHeight - tHeight+1 ;i++){
-        p = src.ptr<uchar>(i);
-        p1 = src1.ptr<uchar>(i);
+     //   p = src.ptr<uchar>(i);
+     //   p1 = src1.ptr<uchar>(i);
         for(int j = 0;j<pWidth - tWidth+1 ;j++){
             pResult = 0;
-           // double acc = 0;
             for(int k = 0;k < tHeight;k++){
-
                 for(int l =0;l<tWidth;l++){
                    // pResult += p[j]*kernel[k*tHeight+l];
-                    pResult+=src.at<uchar>(i+k,j+l)*kernel[k*tHeight+l];
-
+                    pResult+=src.at<float>(i+k,j+l)*kernel[k*tHeight+l];
                    // acc += *(srcData + src.step * (i+l) + (j+k)) * kernel[k*tHeight+l];
                 }
             }
             if(pResult > 255){
                // *(dstData + src1.step * (i+tHeight/2)  + (j+tWidth/2) ) = 255;
-                src1.at<uchar>(i+tHeight/2,j+tHeight/2) = 255;
+                src1.at<float>(i+tHeight/2,j+tHeight/2) = 255;
             }
             else if(pResult < 0){
                 //*(dstData + src1.step * (i+tHeight/2)  + (j+tWidth/2) ) = 0;
-                src1.at<uchar>(i+tHeight/2,j+tHeight/2) = 0;
+                src1.at<float>(i+tHeight/2,j+tHeight/2) = 0;
             }
             else{
                // *(dstData + src1.step * (i+tHeight/2)  + (j+tWidth/2) ) = (int)acc;
-                src1.at<uchar>(i+tHeight/2,j+tHeight/2) = (int)pResult;
+                src1.at<float>(i+tHeight/2,j+tHeight/2) = pResult;
             }
         }
     }
 
 }
 
-// 灰度图一维高斯模板
+// 灰度图一维高斯模糊
 void Gauss(Mat &src,Mat &dst,double segma){
     int ksize;
     ksize = 1+2*ceil(3*segma);
     int kcenter = ksize/2;
     double *kernel = new double(ksize);
-    int sum = 0;
+    double sum = 0,psum = 0;
     double dvalue = 0;
     double aa = -1/(2*segma*segma);
     double bb = 1/(sqrt(2*PI*segma*segma));
     double g,d;
+    int i = 0,j = 0;
     Mat tmp;
     tmp.create(src.size(),src.type());
+    dst.create(src.size(),src.type());
+
     if(src.channels()!=1){
+        cout<<"hhh"<<endl;
         return;
     }
-    for(int i = 0;i < ksize;i++){
-        d = i - kcenter;
-        g = bb*exp(aa*d*d);
-        kernel[i] = g;
-        sum+=kernel[i];
+    for( i = 0;i < ksize;i++){
+        d = abs(i - kcenter);
+        *(kernel+i) = bb*exp(aa*d*d);;
+        sum += *(kernel+i);
+        cout<<*(kernel+i)<<"--"<<i<<"   ";
     }
+    cout<<"zhixingchulaila"<<endl;
+  //  cout<<"sum:"<<sum<<endl;
 
-    for(int i = 0;i<ksize;i++){
-        kernel[i] = kernel[i]/sum;
+    for( i = 0;i<ksize;i++){
+        *(kernel+i) = *(kernel+i)/sum;
+        cout<<*(kernel+i)<<"-*-"<<i<<" ";
     }
+    cout<<"执行出来拉！"<<endl;
+    //cout<<"i:"<<i<<endl;
 
-    dst.create(src.size(),src.type());
+
     //x方向的高斯模糊
     for(int y = 0;y < src.rows;y++){
         for(int x = 0;x < src.cols;x++){
-            for(int i = -kcenter;i<kcenter;i++){
-                if(x+i>0&&x+i<src.cols){
-                    dvalue += src.at<uchar>(y,x+i)*kernel[kcenter+i];
-                    sum += kernel[kcenter+i];
+            psum = 0;
+            dvalue = 0;
+            for( i = -kcenter;i<=kcenter;i++){
+                if((x+i)>=0&&(x+i)<src.cols){
+                    dvalue += src.at<float>(x+i,y)*(*(kernel+kcenter+i));
+                    psum += *(kernel+kcenter+i);
                 }
 
             }
 
-            tmp.at<uchar>(x,y) = dvalue/sum;
+            tmp.at<float>(x,y) = dvalue/psum;
         }
     }
+
 
     //y方向的高斯模糊
     for(int x = 0;x < src.cols;x++){
         for(int y = 0;y < src.rows;y++){
-            for(int i = -kcenter;i<kcenter;i++){
-                if(y+i>0&&y+i<src.rows){
-                    dvalue += tmp.at<uchar>(y+i,x)*kernel[kcenter+i];
-                    sum += kernel[kcenter+i];
+            psum = 0;
+            dvalue = 0;
+            for( i = -kcenter;i<=kcenter;i++){
+                if((y+i)>=0&&(y+i)<src.rows){
+                    dvalue += tmp.at<float>(x,y+i)*(*(kernel+kcenter+i));
+                    psum += *(kernel+kcenter+i);
                 }
 
             }
 
-            dst.at<uchar>(x,y) = dvalue/sum;
+            dst.at<float>(x,y) = dvalue/psum;
         }
     }
+
+    delete[] kernel;
+}
+
+void CTlog(Mat &src,Mat &dst){
+    int Height = src.cols;
+    int Width = src.rows;
+    int x,y;
+    double dvalue;
+    for(x = 0;x < Height;x++){
+        for(y = 0;y < Width;y++){
+            dvalue = log(src.at<uchar>(x,y));
+            if(dvalue > 255){
+                dst.at<uchar>(x,y) = 255;
+            }
+            if(dvalue<0){
+                dst.at<uchar>(x,y) = 0;
+            }
+            else{
+                dst.at<uchar>(x,y) = (int)dvalue;
+            }
+        }
+
+    }
+}
+
+void subImg(Mat &src1,Mat &src2,Mat &dst){
+    int Height = src1.cols;
+    int Width = src1.rows;
+    int x,y;
+    int dvalue;
+    for(x = 0;x < Height;x++){
+        for(y = 0;y < Width;y++){
+        //    dvalue  = src1.at<uchar>(x,y) - src2.at<uchar>(x,y);
+            dst.at<uchar>(x,y) = src1.at<uchar>(x,y) - src2.at<uchar>(x,y);
+            //这样以后得到的dst一片漆黑。。。
+//            if(dvalue > 255){
+//                dst.at<uchar>(x,y) = 255;
+//            }
+//            if(dvalue<0){
+//                dst.at<uchar>(x,y) = 0;
+//            }
+//            else{
+//                dst.at<uchar>(x,y) = dvalue;
+//            }
+        }
+    }
+}
+
+void stretch(Mat &src){
+    int Height = src.cols;
+    int Width = src.rows;
+    cout<<Height<<"--"<<Width<<endl;
+    int x = 0,y = 0;
+    double lmax=0,lmin = 255;
+    double min,max,maxmin,dvalue,avg = 0,fc = 0;
+    double dli;
+    int scale = 2;
+    for(x = 0;x < Height;x++){
+        for(y = 0;y < Width;y++){
+            dli = src.at<float>(x,y);
+            if(dli > lmax){
+                lmax = dli;
+            }
+            if(dli<lmin){
+                lmin = dli;
+            }
+            avg += dli;
+           // cout<<"dli:"<<dli<<"  ";
+        }
+    }
+    cout<<endl;
+    cout<<"lmax:"<<lmax<<endl;
+    avg = avg/(Height*Width);
+    cout<<"lmin:"<<lmin<<endl;
+    dli = 0;
+    for(x = 0;x < Height;x++){
+        for(y = 0;y < Width;y++){
+            dli = src.at<float>(x,y);
+            fc = fc +(dli-avg)*(dli-avg);
+        }
+    }
+    fc = fc/(Height*Width);
+    cout<<"fc:-avg:"<<fc<<" - "<<avg<<endl;
+
+    Scalar me,de;
+    meanStdDev(src,me,de);
+ //   cout<<"mmme"<<me.val[0]<<"---"<<de.val[0]<<endl;
+    min = me.val[0] - scale*de.val[0];
+    max = me.val[0] + scale*de.val[0];
+  //  min = avg - scale*fc;
+  //  max = avg + scale*fc;
+    maxmin = max - min;
+  //  cout<<"######"<<maxmin<<endl;
+    for(x =0;x<Height;x++){
+        for(y = 0;y < Width;y++){
+             dvalue = ((src.at<float>(x,y)-min)/maxmin);
+           // cout<<"***"<<dvalue<<endl;
+             src.at<float>(x,y) = dvalue;
+//            if(dvalue > 255){
+//                src.at<float>(x,y) = 255;
+//            }
+//            if(dvalue<0){
+//                src.at<float>(x,y) = 0;
+//            }
+//            else{
+//                src.at<float>(x,y) = (int)dvalue;
+//            }
+        }
+    }
+}
+void pImg(Mat &src){
+    int Height = src.cols;
+    int Width = src.rows;
+    int x = 0,y = 0;
+    for(x = 0;x < Height; x++){
+        for(y = 0;y < Width;y++){
+            cout<<src.at<float>(x,y)<<" ";
+//            if(src.at<int>(x,y)>255||src.at<int>(x,y)<255){
+//                cout<<"hhhhhcuolelelelelel"<<endl;
+//                return;
+//            }
+        }
+        cout<<endl;
+    }
+}
+
+void addforlog(Mat &src,Mat &dst,float f){
+    int Height = src.cols;
+    int Width = src.rows;
+    int x = 0,y = 0;
+    for(x = 0;x < Height; x++){
+        for(y = 0;y < Width;y++){
+            dst.at<float>(x,y) = src.at<float>(x,y)+f;
+        }
+    }
+}
+
+void sunSSR(Mat &src,Mat &dst,double segma){
+    Mat src_s,src_r;
+    src_s.create(src.size(),CV_32F);
+    dst.create(src.size(),CV_32F);
+    addforlog(src,dst,1.0);
+   // convertScaleAbs(src,dst,1.0,1.0);
+
+    //CTlog(dst,src_s);
+    log(dst,src_s);
+    //二维高斯模糊
+    int l = 1+2*ceil(3*segma);
+    float *Gkernel = new float(l*l);
+    Gkernel = makeGaussKern(segma);
+    Gauss2D(src,src_r,Gkernel,segma);
+    //一维高斯模糊
+   // Gauss(src,src_r,segma);
+
+    //CTlog(src_r,src_r);
+    addforlog(src_r,src_r,1.0);
+    log(src_r,src_r);
+
+    //subImg(src_s,src_r,dst);
+    subtract(src_s,src_r,dst);
+   // pImg(src_r);
+    stretch(dst);
+
+    return;
 
 }
 
@@ -164,6 +340,7 @@ void SSR(IplImage* src,int sigma,int scale)
     IplImage* src_fl2 = cvCreateImage(cvGetSize(src),IPL_DEPTH_32F,src->nChannels);
     float a=0.0,b=0.0,c=0.0;
     cvConvertScale(src,src_fl,1.0,1.0);//转换范围，所有图像元素增加1.0保证cvlog正常
+
     cvLog(src_fl,src_fl1);
 
     cvSmooth(src_fl,src_fl2,CV_GAUSSIAN,0,0,sigma);        //SSR算法的核心之一，高斯模糊
@@ -207,41 +384,28 @@ void SSR(IplImage* src,int sigma,int scale)
 int main()
 {
 
-    double segma = 5;
+    double segma = 30;
     int l = 1+2*ceil(3*segma);
-    string filename="/Users/sunguoyan/Downloads/picture/lena.bmp";
-  //  float *Gkernel = new float(l*l);
-    Mat src,src1;
-    src = imread(filename,0);
+    string filename="/Users/sunguoyan/Downloads/picture/dota.jpg";
 
+    Mat src,src1,dst;
+    src = imread(filename,CV_LOAD_IMAGE_GRAYSCALE);
+   // src1.create(src.size(),src.type());
+    src.convertTo(src1,CV_32F,1/255.0);
 
-   // Gkernel = makeGaussKern(segma);
+    float *Gkernel = new float(l*l);
+    Gkernel = makeGaussKern(segma);
+    Gauss2D(src1,dst,Gkernel,segma);
 
-
-
-   // Gauss2D(src,src1,Gkernel,segma);
-
-    Gauss(src,src1,segma);
+  //  Gauss(src,src1,segma);
+  //  log(src1,dst);
+  //  sunSSR(src1,dst,segma);
     namedWindow("test");
     namedWindow("test1");
-    imshow("test",src);
-
-    imshow("test1",src1);
+    imshow("test",src1);
+    imshow("test1",dst);
     waitKey(0);
 
-//    IplImage* frog=cvLoadImage(filename,1);
-//    IplImage* frog1=cvCreateImage(cvGetSize(frog),IPL_DEPTH_32F,frog->nChannels);
-//    cvConvertScale(frog,frog1,1.0/255,0);
-//    SSR(frog,30,2);
-//    cvNamedWindow("hi");
-//    cvNamedWindow("hi1");
-//    cvShowImage("hi1",frog1);
-//    cvShowImage("hi",frog);
-//    cvWaitKey(0);
-//    cvDestroyAllWindows();
-//    cvReleaseImage(&frog);
-//    cvReleaseImage(&frog1);
-
-
+    cout<<"到return前拉"<<endl;
     return 0;
 }

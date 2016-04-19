@@ -4,11 +4,74 @@
 #include <iostream>
 #include <math.h>
 #include<vector>
+#include<time.h>
 
 using namespace std;
 using namespace cv;
 
 #define PI 3.1415926535
+typedef uchar tc;
+typedef double ty;
+
+/**
+ * 无偏处理
+ */
+void edifference(Mat &src) {
+
+}
+
+//计算图片的信息熵
+double Entropy(Mat &A) {
+    int En[256];
+    double fpEn[256];
+    double result, sum = 0, tmp;
+    int X_image, Y_image;
+    X_image = A.cols;
+    Y_image = A.rows;
+    int size = X_image * Y_image;
+    int i, j;
+    memset(&En, 0, sizeof(int) * 256);
+    memset(&fpEn, 0, sizeof(double) * 256);
+    for (i = 0; i < Y_image; i++) //计算差分矩阵直方图
+    {
+        for (j = 0; j < X_image; j++) {
+            tc GrayIndex = A.at<tc>(i, j);
+            En[GrayIndex]++;
+        }
+    }
+
+    for (i = 0; i < 256; i++)   // 计算灰度分布密度
+    {
+        fpEn[i] = (double) En[i] / (double) size;
+    }
+    for (i = 0; i < 256; i++) {
+        if (fpEn[i] > 0) {
+            tmp = log(fpEn[i]) / log(2);
+            sum = sum + fpEn[i] * tmp;
+        }
+    }
+    sum = -sum;
+    return sum;
+}
+
+//计算并输出图像的均值，标准差，信息熵
+void MeanStdEntropy(Mat &A, string name) {
+    //计算图像信息熵
+    double entropy;
+    entropy = Entropy(A);
+
+    //计算图像方差与均值
+    Scalar mean;
+    Scalar stddev;
+
+    meanStdDev(A, mean, stddev);
+    ty mean_pxl = mean.val[0];
+    ty stddev_pxl = stddev.val[0];
+    cout << name << "均值：" << mean_pxl << " " + name << "的标准差：" << stddev_pxl << " " + name << "的信息熵：" << entropy <<
+    endl;
+    return;
+}
+
 
 /**
  * @function：makeGaussKern
@@ -59,7 +122,7 @@ void Gauss2D(Mat &src, Mat &src1, float *kernel, double segma) {
     int tcenterY = (int) tHeight / 2;
     int tcenterX = (int) tWidth / 2;
     double pResult;
-    src1.create(src.size(), CV_32F);
+    src1.create(src.size(), src.type());
     CV_Assert(src.depth() != sizeof(uchar));
     for (int i = 0; i < pHeight - tHeight + 1; i++) {
         for (int j = 0; j < pWidth - tWidth + 1; j++) {
@@ -282,7 +345,9 @@ void sunSSR(Mat &src, Mat &dst, double segma) {
     src_s.create(src.size(), CV_32F);
     dst.create(src.size(), CV_32F);
 //  将原图转换到对数域，将每个像素都要加一，保证对数运算正确
+
     addforlog(src, dst, 1.0);
+//    pImg(dst);
     log(dst, src_s);
 //  二维高斯模糊
 //  int l = 1+2*ceil(3*segma);
@@ -304,25 +369,46 @@ void sunSSR(Mat &src, Mat &dst, double segma) {
 
 int main() {
 //  执行retinex时用30比较好，实验时先写5
-    double segma = 30;
+    double segma = 200;
     int l = 1 + 2 * ceil(3 * segma);
-    string filename = "/Users/sunguoyan/Downloads/picture/wu.jpg";
+    string filename = "/Users/sunguoyan/Downloads/picture/lenamo.jpg";
 
-    Mat src, src1, dst;
+    Mat src, src1, dst, dst1;
     src = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
     src.convertTo(src1, CV_32F, 1 / 255.0);
+    dst1.create(src.size(), src.type());
+
+    clock_t start = clock();
+    double totaltime;
+
 //  二维高斯模糊
 //  float *Gkernel = new float(l*l);
 //  Gkernel = makeGaussKern(segma);
 //  Gauss2D(src1,dst,Gkernel,segma);
 //
-//  Gauss(src1,dst,segma);
+//    dst.create(src.size(), CV_32F);
+//    Gauss(src1,dst,segma);
 //  log(src1,dst);
     sunSSR(src1, dst, segma);
+    clock_t end = clock();
+    totaltime = (double) (end - start) / CLOCKS_PER_SEC;
+    cout << "运行时间: " << totaltime << endl;
+//    FileStorage fs("/Users/sunguoyan/Downloads/picture/lenamo.bmp", FileStorage::WRITE);
+//    fs<<"lenamo"<<dst;
+
+
+//    imwrite("/Users/sunguoyan/Downloads/picture/lenamo.bmp",dst1);
+
+    dst.convertTo(dst1, CV_8U, 255, 0);
+
+    MeanStdEntropy(src, "原图像");
+    MeanStdEntropy(dst1, "Retinex增强后图像");
+
     namedWindow("test");
     namedWindow("test1");
     imshow("test", src1);
-    imshow("test1", dst);
+    imshow("test1", dst1);
     waitKey(0);
+//    fs.release();
     return 0;
 }

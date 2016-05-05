@@ -20,6 +20,73 @@ void edifference(Mat &src) {
 
 }
 
+/**
+ * function:stretch
+ * descrition:将图像从对数域转换到空间域
+ */
+//void stretch(double *src) {
+//    int h = 0, w = 0, i;
+//    double min, max, maxmin, dvalue, avg , stdv;
+//    int scale = 2;
+//    double sum = 0;
+//
+//
+//    for (i = 0; i < X_image * Y_image; i++) {
+//        sum += src[i];
+//    }
+//    avg = sum / (double)(X_image * Y_image);
+//    sum = 0;
+//    for (i = 0; i < X_image * Y_image; i++) {
+//        sum += (src[i] - avg) * (src[i] - avg);
+//    }
+//    stdv = sqrt(sum);
+//
+//
+//    min = avg - scale * stdv;
+//    max = avg + scale * stdv;
+//    maxmin = max - min;
+////    cout<<maxmin<<endl;
+//    for (h = 0; h < X_image; h++) {
+//        for (w = 0; w < Y_image; w++) {
+//            dvalue = ((src[h * Y_image + w] - min) / maxmin);
+//            src[h * Y_image + w] = dvalue;
+////            cout<<dvalue<<" ";
+//        }
+//    }
+//}
+
+
+
+void change2Log(Mat&src, Mat&dst) {
+
+    int Height = src.cols;
+    int Width = src.rows;
+    int x = 0, y = 0;
+    for (x = 0; x < Height; x++) {
+        for (y = 0; y < Width; y++) {
+            dst.at<ty>(y,x) = log(src.at<ty>(y,x));
+        }
+    }
+}
+
+void subimage(Mat &src1, Mat &src2, Mat &dst) {
+    int i,h,w;
+
+    double tmp;
+    int Height = src1.cols;
+    int Width = src1.rows;
+    int x = 0, y = 0;
+    for (x = 0; x < Height; x++) {
+        for (y = 0; y < Width; y++) {
+           tmp = src1.at<ty>(y,x)-src2.at<ty>(y,x);
+            if(tmp < 0){
+                tmp = 0;
+            }
+            dst.at<ty>(y,x) = tmp;
+        }
+    }
+}
+
 //计算图片的信息熵
 double Entropy(Mat &A) {
     int En[256];
@@ -223,39 +290,7 @@ void Gauss(Mat &src, Mat &dst, double segma) {
     // skernel = NULL;
 }
 
-/**
- * function:CTlog
- * description:convert image to log
- */
-void CTlog(Mat &src, Mat &dst) {
-    int Height = src.cols;
-    int Width = src.rows;
-    int x, y;
-    double dvalue;
-    for (x = 0; x < Height; x++) {
-        for (y = 0; y < Width; y++) {
-            dvalue = log(src.at<float>(x, y));
-            dst.at<float>(x, y) = dvalue;
-        }
 
-    }
-}
-
-/**
- * function:subImg
- * description:将两个同样大小的图片相减
- */
-void subImg(Mat &src1, Mat &src2, Mat &dst) {
-    int Height = src1.cols;
-    int Width = src1.rows;
-    int x, y;
-    int dvalue;
-    for (x = 0; x < Height; x++) {
-        for (y = 0; y < Width; y++) {
-            dst.at<float>(x, y) = src1.at<float>(x, y) - src2.at<float>(x, y);
-        }
-    }
-}
 
 /**
  * function:stretch
@@ -336,6 +371,8 @@ void addforlog(Mat &src, Mat &dst, float f) {
     }
 }
 
+
+
 /**
  * function:sunSSR
  * description:将图像进行SS（单尺度Retinex增强）
@@ -348,6 +385,7 @@ void sunSSR(Mat &src, Mat &dst, double segma) {
 
     addforlog(src, dst, 1.0);
 //    pImg(dst);
+//    change2Log(dst,src_s);
     log(dst, src_s);
 //  二维高斯模糊
 //  int l = 1+2*ceil(3*segma);
@@ -358,10 +396,12 @@ void sunSSR(Mat &src, Mat &dst, double segma) {
     Gauss(src, src_r, segma);
 //  CTlog(src_r,src_r);
     addforlog(src_r, src_r, 1.0);
+//    change2Log(src_r,src_r);
     log(src_r, src_r);
 //  subImg(src_s,src_r,dst);
 //  logL = logR-logS
     subtract(src_s, src_r, dst);
+//    subimage(src_s,src_r,dst);
     stretch(dst);
     return;
 }
@@ -369,9 +409,9 @@ void sunSSR(Mat &src, Mat &dst, double segma) {
 
 int main() {
 //  执行retinex时用30比较好，实验时先写5
-    double segma = 200;
+    double segma = 100;
     int l = 1 + 2 * ceil(3 * segma);
-    string filename = "/Users/sunguoyan/Downloads/picture/lenamo.jpg";
+    string filename = "/Users/sunguoyan/Downloads/picture/wu.jpg";
 
     Mat src, src1, dst, dst1;
     src = imread(filename, CV_LOAD_IMAGE_GRAYSCALE);
@@ -393,11 +433,6 @@ int main() {
     clock_t end = clock();
     totaltime = (double) (end - start) / CLOCKS_PER_SEC;
     cout << "运行时间: " << totaltime << endl;
-//    FileStorage fs("/Users/sunguoyan/Downloads/picture/lenamo.bmp", FileStorage::WRITE);
-//    fs<<"lenamo"<<dst;
-
-
-//    imwrite("/Users/sunguoyan/Downloads/picture/lenamo.bmp",dst1);
 
     dst.convertTo(dst1, CV_8U, 255, 0);
 
